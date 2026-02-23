@@ -1,0 +1,147 @@
+{
+    "info": {
+        "name": "Banking API",
+        "description": "Banking API for Android learners - Thunder Client Collection",
+        "schema": "https://www.thunderclient.com/thunder-collection.json"
+    },
+    "requests": [
+        {
+            "id": "auth-login",
+            "name": "Login",
+            "method": "POST",
+            "url": "{{BASE_URL}}/auth/login",
+            "headers": [
+                {
+                    "name": "Content-Type",
+                    "value": "application/json"
+                }
+            ],
+            "body": {
+                "type": "json",
+                "content": "{\n  \"email\": \"alex@example.com\",\n  \"password\": \"password\"\n}"
+            },
+            "tests": "const jsonData = res.json();\nif (res.status === 200) {\n  clientStorage.setVar('token', jsonData.token);\n  clientStorage.setVar('user_id', jsonData.user.id);\n  clientStorage.setVar('account_id', '');\n  clientStorage.setVar('from_account_id', '');\n  clientStorage.setVar('to_account_id', '');\n}\n"
+        },
+        {
+            "id": "user-profile",
+            "name": "Get Profile",
+            "method": "GET",
+            "url": "{{BASE_URL}}/me",
+            "headers": [
+                {
+                    "name": "Authorization",
+                    "value": "Bearer {{token}}"
+                }
+            ]
+        },
+        {
+            "id": "accounts-list",
+            "name": "Get All Accounts",
+            "method": "GET",
+            "url": "{{BASE_URL}}/accounts",
+            "headers": [
+                {
+                    "name": "Authorization",
+                    "value": "Bearer {{token}}"
+                }
+            ],
+            "tests": "const jsonData = res.json();\nif (res.status === 200 && jsonData.accounts.length > 0) {\n  const account = jsonData.accounts[0];\n  clientStorage.setVar('account_id', account.id);\n  if (jsonData.accounts.length > 1) {\n    clientStorage.setVar('from_account_id', jsonData.accounts[0].id);\n    clientStorage.setVar('to_account_id', jsonData.accounts[1].id);\n  } else {\n    clientStorage.setVar('from_account_id', account.id);\n    clientStorage.setVar('to_account_id', account.id);\n  }\n}\n"
+        },
+        {
+            "id": "accounts-detail",
+            "name": "Get Account by ID",
+            "method": "GET",
+            "url": "{{BASE_URL}}/accounts/{{account_id}}",
+            "headers": [
+                {
+                    "name": "Authorization",
+                    "value": "Bearer {{token}}"
+                }
+            ]
+        },
+        {
+            "id": "transactions-list",
+            "name": "Get Transactions",
+            "method": "GET",
+            "url": "{{BASE_URL}}/accounts/{{account_id}}/transactions?limit=10",
+            "headers": [
+                {
+                    "name": "Authorization",
+                    "value": "Bearer {{token}}"
+                }
+            ]
+        },
+        {
+            "id": "transfers-create",
+            "name": "Create Transfer",
+            "method": "POST",
+            "url": "{{BASE_URL}}/transfers",
+            "headers": [
+                {
+                    "name": "Content-Type",
+                    "value": "application/json"
+                },
+                {
+                    "name": "Authorization",
+                    "value": "Bearer {{token}}"
+                },
+                {
+                    "name": "Idempotency-Key",
+                    "value": "transfer-{{$timestamp}}"
+                }
+            ],
+            "body": {
+                "type": "json",
+                "content": "{\n  \"fromAccountId\": \"{{from_account_id}}\",\n  \"toAccountId\": \"{{to_account_id}}\",\n  \"amount\": 50.00,\n  \"note\": \"Transfer test\"\n}"
+            }
+        },
+        {
+            "id": "auth-register",
+            "name": "Register",
+            "method": "POST",
+            "url": "{{BASE_URL}}/auth/register",
+            "headers": [
+                {
+                    "name": "Content-Type",
+                    "value": "application/json"
+                }
+            ],
+            "body": {
+                "type": "json",
+                "content": "{\n  \"name\": \"New User\",\n  \"email\": \"newuser@example.com\",\n  \"password\": \"password123\"\n}"
+            }
+        },
+        {
+            "id": "health-check",
+            "name": "Health Check",
+            "method": "GET",
+            "url": "{{BASE_URL}}/health"
+        }
+    ],
+    "variables": [
+        {
+            "name": "BASE_URL",
+            "value": "http://localhost:3000"
+        },
+        {
+            "name": "token",
+            "value": ""
+        },
+        {
+            "name": "user_id",
+            "value": ""
+        },
+        {
+            "name": "account_id",
+            "value": ""
+        },
+        {
+            "name": "from_account_id",
+            "value": ""
+        },
+        {
+            "name": "to_account_id",
+            "value": ""
+        }
+    ]
+}
