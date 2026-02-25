@@ -35,8 +35,12 @@ app.get('/health', (_req, res) => {
 });
 
 // Load and serve OpenAPI/Swagger documentation
-const openapiPath = path.join(__dirname, 'docs/openapi.yaml');
-if (fs.existsSync(openapiPath)) {
+const openapiCandidates = [
+    path.join(__dirname, 'docs/openapi.yaml'),
+    path.join(process.cwd(), 'src/docs/openapi.yaml'),
+];
+const openapiPath = openapiCandidates.find((candidate) => fs.existsSync(candidate));
+if (openapiPath) {
     const openapiFile = fs.readFileSync(openapiPath, 'utf8');
     const swaggerDocument = YAML.parse(openapiFile);
 
