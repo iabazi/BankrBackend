@@ -1,0 +1,667 @@
+================================================================================
+                         BANKING API DOCUMENTATION
+================================================================================
+
+VERSION:      1.0.0
+DESCRIPTION:  Production-ready banking API for Android learners integrating 
+              with Retrofit + Coroutines
+
+================================================================================
+                              BASE URLS
+================================================================================
+
+Production:       https://bankr-backend-ipvj.vercel.app
+Development:      http://localhost:3000
+Android Emulator: http://10.0.2.2:3000
+
+================================================================================
+                           AUTHENTICATION
+================================================================================
+
+All endpoints except /auth/* require a JWT token in the Authorization header:
+
+  Authorization: Bearer <token>
+
+Tokens expire after 7 days.
+
+SEED DATA (for testing):
+  Email:    alex@example.com
+  Password: password
+
+================================================================================
+                              ENDPOINTS
+================================================================================
+
+--- HEALTH CHECK ---
+
+GET /health
+
+Check if server is running.
+
+Response (200):
+{
+  "status": "ok",
+  "timestamp": "2024-02-23T12:00:00.000Z"
+}
+
+================================================================================
+--- AUTHENTICATION ---
+
+1. REGISTER
+
+POST /auth/register
+
+Request Body:
+{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "password": "SecurePassword123"
+}
+
+Response (201):
+{
+  "user": {
+    "id": "ab1234cd5678ef",
+    "name": "John Doe",
+    "email": "john@example.com",
+    "createdAt": "2024-02-23T12:00:00.000Z"
+  }
+}
+
+Errors:
+  - 400: Invalid input (name < 2 chars, invalid email, password < 6 chars)
+  - 409: Email already registered
+
+---
+
+2. LOGIN
+
+POST /auth/login
+
+Request Body:
+{
+  "email": "alex@example.com",
+  "password": "password"
+}
+
+Response (200):
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "id": "ab1234cd5678ef",
+    "name": "Alex Demo",
+    "email": "alex@example.com",
+    "createdAt": "2024-02-23T12:00:00.000Z"
+  }
+}
+
+Errors:
+  - 401: Invalid credentials (wrong email or password)
+
+================================================================================
+--- USER PROFILE ---
+
+GET /me
+
+Get current user profile.
+
+Headers:
+  Authorization: Bearer <token>
+
+Response (200):
+{
+  "id": "ab1234cd5678ef",
+  "name": "Alex Demo",
+  "email": "alex@example.com",
+  "createdAt": "2024-02-23T12:00:00.000Z"
+}
+
+Errors:
+  - 401: Unauthorized (missing or invalid token)
+
+================================================================================
+--- ACCOUNTS ---
+
+1. LIST ALL ACCOUNTS
+
+GET /accounts
+
+Get all accounts for the current user.
+
+Headers:
+  Authorization: Bearer <token>
+
+Response (200):
+{
+  "accounts": [
+    {
+      "id": "c1234567890ab",
+      "userId": "ab1234cd5678ef",
+      "type": "CHECKING",
+      "name": "Chequing Account",
+      "numberMasked": "**** **** **** 1234",
+      "currency": "CAD",
+      "balance": 2360.42
+    },
+    {
+      "id": "c0987654321cd",
+      "userId": "ab1234cd5678ef",
+      "type": "SAVINGS",
+      "name": "Savings Account",
+      "numberMasked": "**** **** **** 5678",
+      "currency": "CAD",
+      "balance": 12450.00
+    }
+  ]
+}
+
+Errors:
+  - 401: Unauthorized
+
+---
+
+2. GET SINGLE ACCOUNT
+
+GET /accounts/{id}
+
+Get details for a specific account.
+
+Headers:
+  Authorization: Bearer <token>
+
+Path Parameters:
+  - id (required): Account ID, e.g., "c1234567890ab"
+
+Response (200):
+{
+  "id": "c1234567890ab",
+  "userId": "ab1234cd5678ef",
+  "type": "CHECKING",
+  "name": "Chequing Account",
+  "numberMasked": "**** **** **** 1234",
+  "currency": "CAD",
+  "balance": 2360.42
+}
+
+Errors:
+  - 401: Unauthorized
+  - 403: Forbidden (account belongs to another user)
+  - 404: Account not found
+
+================================================================================
+--- TRANSACTIONS ---
+
+GET /accounts/{id}/transactions
+
+Get transactions for an account (paginated with cursor-based pagination).
+
+Headers:
+  Authorization: Bearer <token>
+
+Path Parameters:
+  - id (required): Account ID
+
+Query Parameters:
+  - limit (optional, default: 20, max: 100): Number of results per page
+  - cursor (optional): ID of last transaction from previous page
+
+Example Request:
+  GET /accounts/c1234567890ab/transactions?limit=20&cursor=t1234567890ab
+
+Response (200):
+{
+  "data": [
+    {
+      "id": "t1234567890ab",
+      "accountId": "c1234567890ab",
+      "type": "DEBIT",
+      "amount": 89.99,
+      "description": "Grocery store",
+      "counterparty": "Whole Foods Market",
+      "timestamp": "2024-02-19T15:30:00.000Z",
+      "status": "POSTED"
+    },
+    {
+      "id": "t0987654321cd",
+      "accountId": "c1234567890ab",
+      "type": "CREDIT",
+      "amount": 1500.00,
+      "description": "Salary deposit",
+      "counterparty": "Employer Inc.",
+      "timestamp": "2024-02-15T08:00:00.000Z",
+      "status": "POSTED"
+    }
+  ],
+  "cursor": "t1234567890ab",
+  "hasMore": true
+}
+
+PAGINATION:
+  - Use the returned "cursor" value in the next request to get the next page
+  - "hasMore" indicates if more transactions exist
+  - Transactions are ordered by most recent first
+
+Errors:
+  - 401: Unauthorized
+  - 403: Forbidden
+  - 404: Account not found
+
+================================================================================
+--- TRANSFERS ---
+
+POST /transfers
+
+Create a transfer between accounts.
+
+Headers:
+  Authorization: Bearer <token>
+  Idempotency-Key: transfer-2024-02-23-12345    (optional, prevents duplicates)
+
+Request Body:
+{
+  "fromAccountId": "c1234567890ab",
+  "toAccountId": "c0987654321cd",
+  "amount": 150.50,
+  "note": "Payment for lunch"
+}
+
+Response (201):
+{
+  "id": "tr1234567890ab",
+  "fromAccountId": "c1234567890ab",
+  "toAccountId": "c0987654321cd",
+  "amount": 150.50,
+  "note": "Payment for lunch",
+  "status": "SUCCESS",
+  "createdAt": "2024-02-23T12:00:00.000Z"
+}
+
+Errors:
+  - 400: Invalid input (missing fields, amount <= 0, same accounts)
+  - 401: Unauthorized
+  - 403: Forbidden (account belongs to another user)
+  - 404: Account not found
+  - 409: Insufficient funds
+
+IDEMPOTENCY:
+  - Providing an Idempotency-Key prevents duplicate transfers
+  - If the same key is used twice, the first transfer is returned
+
+================================================================================
+                            DATA ENTITIES
+================================================================================
+
+--- ACCOUNT ---
+
+{
+  "id": string              // Unique account identifier
+  "userId": string          // Owner's user ID
+  "type": "CHECKING" | "SAVINGS"
+  "name": string            // Display name (e.g., "Chequing Account")
+  "numberMasked": string    // Masked account number (e.g., "**** 1234")
+  "currency": string        // Currency code (e.g., "CAD")
+  "balance": number         // Current balance (e.g., 2360.42)
+}
+
+Example:
+{
+  "id": "c1234567890ab",
+  "userId": "ab1234cd5678ef",
+  "type": "CHECKING",
+  "name": "Chequing Account",
+  "numberMasked": "**** **** **** 1234",
+  "currency": "CAD",
+  "balance": 2360.42
+}
+
+---
+
+--- TRANSACTION ---
+
+{
+  "id": string                    // Unique transaction identifier
+  "accountId": string             // Which account
+  "type": "DEBIT" | "CREDIT"      // Transaction type
+  "amount": number                // Amount (e.g., 89.99)
+  "description": string           // What it's for (e.g., "Grocery store")
+  "counterparty": string          // Who/what (e.g., "Whole Foods Market")
+  "timestamp": ISO-8601 string    // When it occurred
+  "status": "POSTED" | "PENDING"  // Current status
+}
+
+Example:
+{
+  "id": "t1234567890ab",
+  "accountId": "c1234567890ab",
+  "type": "DEBIT",
+  "amount": 89.99,
+  "description": "Grocery store",
+  "counterparty": "Whole Foods Market",
+  "timestamp": "2024-02-19T15:30:00.000Z",
+  "status": "POSTED"
+}
+
+---
+
+--- TRANSFER ---
+
+{
+  "id": string                    // Unique transfer identifier
+  "fromAccountId": string         // Source account
+  "toAccountId": string           // Destination account
+  "amount": number                // Amount transferred
+  "note": string (nullable)       // Optional memo
+  "status": "SUCCESS" | "FAILED"  // Transfer outcome
+  "createdAt": ISO-8601 string    // When created
+}
+
+Example:
+{
+  "id": "tr1234567890ab",
+  "fromAccountId": "c1234567890ab",
+  "toAccountId": "c0987654321cd",
+  "amount": 150.50,
+  "note": "Payment for lunch",
+  "status": "SUCCESS",
+  "createdAt": "2024-02-23T12:00:00.000Z"
+}
+
+---
+
+--- ERROR RESPONSE ---
+
+{
+  "error": {
+    "code": string    // Error code (see table below)
+    "message": string // Human-readable error message
+  }
+}
+
+Example:
+{
+  "error": {
+    "code": "INSUFFICIENT_FUNDS",
+    "message": "Transfer amount exceeds available balance"
+  }
+}
+
+================================================================================
+                            ERROR CODES
+================================================================================
+
+Code                   HTTP Status  Description
+==========================================================================
+INVALID_INPUT          400          Validation failed (missing/invalid fields)
+UNAUTHENTICATED        401          Missing or invalid JWT token
+FORBIDDEN              403          Access denied (e.g., account not owned)
+NOT_FOUND              404          Resource doesn't exist
+INSUFFICIENT_FUNDS     409          Transfer amount exceeds balance
+INTERNAL_ERROR         500          Server error
+
+================================================================================
+                          EXAMPLE WORKFLOW
+================================================================================
+
+Step 1: REGISTER
+-----------------
+POST /auth/register
+Content-Type: application/json
+
+{
+  "name": "Jane Smith",
+  "email": "jane@example.com",
+  "password": "SecurePassword123"
+}
+
+Response:
+{
+  "user": {
+    "id": "user123",
+    "name": "Jane Smith",
+    "email": "jane@example.com",
+    "createdAt": "2024-02-23T10:00:00.000Z"
+  }
+}
+
+---
+
+Step 2: LOGIN
+-----------------
+POST /auth/login
+Content-Type: application/json
+
+{
+  "email": "jane@example.com",
+  "password": "SecurePassword123"
+}
+
+Response:
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "id": "user123",
+    "name": "Jane Smith",
+    "email": "jane@example.com",
+    "createdAt": "2024-02-23T10:00:00.000Z"
+  }
+}
+
+Store the token for subsequent requests!
+
+---
+
+Step 3: GET USER PROFILE
+-----------------
+GET /me
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+Response:
+{
+  "id": "user123",
+  "name": "Jane Smith",
+  "email": "jane@example.com",
+  "createdAt": "2024-02-23T10:00:00.000Z"
+}
+
+---
+
+Step 4: LIST ACCOUNTS
+-----------------
+GET /accounts
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+Response:
+{
+  "accounts": [
+    {
+      "id": "acct1",
+      "userId": "user123",
+      "type": "CHECKING",
+      "name": "Chequing Account",
+      "numberMasked": "**** 1234",
+      "currency": "CAD",
+      "balance": 2360.42
+    },
+    {
+      "id": "acct2",
+      "userId": "user123",
+      "type": "SAVINGS",
+      "name": "Savings Account",
+      "numberMasked": "**** 5678",
+      "currency": "CAD",
+      "balance": 12450.00
+    }
+  ]
+}
+
+---
+
+Step 5: GET ACCOUNT DETAILS
+-----------------
+GET /accounts/acct1
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+Response:
+{
+  "id": "acct1",
+  "userId": "user123",
+  "type": "CHECKING",
+  "name": "Chequing Account",
+  "numberMasked": "**** 1234",
+  "currency": "CAD",
+  "balance": 2360.42
+}
+
+---
+
+Step 6: GET TRANSACTIONS (with pagination)
+-----------------
+GET /accounts/acct1/transactions?limit=10
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+Response:
+{
+  "data": [
+    {
+      "id": "txn1",
+      "accountId": "acct1",
+      "type": "DEBIT",
+      "amount": 89.99,
+      "description": "Grocery store",
+      "counterparty": "Whole Foods Market",
+      "timestamp": "2024-02-19T15:30:00.000Z",
+      "status": "POSTED"
+    },
+    {
+      "id": "txn2",
+      "accountId": "acct1",
+      "type": "CREDIT",
+      "amount": 1500.00,
+      "description": "Salary deposit",
+      "counterparty": "Employer Inc.",
+      "timestamp": "2024-02-15T08:00:00.000Z",
+      "status": "POSTED"
+    }
+  ],
+  "cursor": "txn1",
+  "hasMore": true
+}
+
+For next page:
+GET /accounts/acct1/transactions?limit=10&cursor=txn1
+
+---
+
+Step 7: CREATE TRANSFER
+-----------------
+POST /transfers
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+Content-Type: application/json
+Idempotency-Key: transfer-2024-02-23-001
+
+{
+  "fromAccountId": "acct1",
+  "toAccountId": "acct2",
+  "amount": 100.00,
+  "note": "Transfer to savings"
+}
+
+Response (201):
+{
+  "id": "tr1",
+  "fromAccountId": "acct1",
+  "toAccountId": "acct2",
+  "amount": 100.00,
+  "note": "Transfer to savings",
+  "status": "SUCCESS",
+  "createdAt": "2024-02-23T12:00:00.000Z"
+}
+
+After transfer:
+- acct1 balance decreases by 100.00
+- acct2 balance increases by 100.00
+
+================================================================================
+                            QUICK REFERENCE
+================================================================================
+
+CURL EXAMPLES:
+
+1. Health Check
+   curl -X GET https://bankr-backend-ipvj.vercel.app/health
+
+2. Login
+   curl -X POST https://bankr-backend-ipvj.vercel.app/auth/login \
+     -H "Content-Type: application/json" \
+     -d '{"email":"alex@example.com","password":"password"}'
+
+3. Get Accounts (requires token)
+   curl -X GET https://bankr-backend-ipvj.vercel.app/accounts \
+     -H "Authorization: Bearer YOUR_TOKEN_HERE"
+
+4. Create Transfer (requires token)
+   curl -X POST https://bankr-backend-ipvj.vercel.app/transfers \
+     -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "fromAccountId": "acct1",
+       "toAccountId": "acct2",
+       "amount": 100.00,
+       "note": "Payment"
+     }'
+
+================================================================================
+                          TESTING CHECKLIST
+================================================================================
+
+Before deploying to production, test:
+
+[ ] Health endpoint returns 200
+[ ] User registration with valid data
+[ ] User registration rejects duplicate emails
+[ ] Login with valid credentials
+[ ] Login rejects invalid password
+[ ] JWT token is returned on successful login
+[ ] Unauthorized requests without token return 401
+[ ] Get accounts returns list
+[ ] Get single account returns account details
+[ ] Get transactions with pagination works
+[ ] Transfer succeeds with sufficient funds
+[ ] Transfer fails with insufficient funds
+[ ] Transfer fails when both accounts are the same
+[ ] CORS headers are present
+[ ] Error responses follow format: { error: { code, message } }
+[ ] All endpoints validate user owns account (403 if not)
+[ ] Tokens expire after 7 days
+
+================================================================================
+                          DEPLOYMENT URLS
+================================================================================
+
+Production:  https://bankr-backend-ipvj.vercel.app
+Swagger UI:  https://bankr-backend-ipvj.vercel.app/docs
+Health:      https://bankr-backend-ipvj.vercel.app/health
+
+GitHub:      https://github.com/IDBCOPILOT8/BankrBackend
+
+================================================================================
+                        ENVIRONMENT VARIABLES
+================================================================================
+
+JWT_SECRET       - Secure secret for signing JWT tokens (32+ chars, encrypted)
+CORS_ORIGIN      - Comma-separated allowed origins (e.g., localhost, frontend domain)
+NODE_ENV         - Set to "production" on Vercel
+PORT             - Server port (Vercel supplies automatically)
+
+================================================================================
+                          CONTACT & SUPPORT
+================================================================================
+
+For issues or questions about the API, refer to:
+- API Docs: https://bankr-backend-ipvj.vercel.app/docs
+- GitHub: https://github.com/IDBCOPILOT8/BankrBackend
+- README: See README.md in the project root
+
+================================================================================
+END OF DOCUMENTATION
+================================================================================

@@ -9,7 +9,7 @@ export class SeedService {
         // Clear existing data
         store.clear();
 
-        // Create seed user
+        // ===== USER 1: Alex Demo (Primary test user) =====
         const passwordHash = await bcrypt.hash('password', 10);
         const userId = generateId();
 
@@ -22,6 +22,30 @@ export class SeedService {
         };
 
         store.saveUser(user);
+
+        // ===== USER 2: QA Tester (For QA testing) =====
+        const qaUserId = generateId();
+        const qaUser: User = {
+            id: qaUserId,
+            name: 'QA Tester',
+            email: 'qa@example.com',
+            passwordHash,
+            createdAt: new Date('2024-01-10'),
+        };
+
+        store.saveUser(qaUser);
+
+        // ===== USER 3: Jane Smith (For transfer testing) =====
+        const janeUserId = generateId();
+        const janeUser: User = {
+            id: janeUserId,
+            name: 'Jane Smith',
+            email: 'jane@example.com',
+            passwordHash,
+            createdAt: new Date('2024-01-15'),
+        };
+
+        store.saveUser(janeUser);
 
         // Create checking account
         const checkingId = generateId();
@@ -233,7 +257,132 @@ export class SeedService {
 
         savingsTransactions.forEach((t) => store.saveTransaction(t));
 
+        // ===== QA TESTER ACCOUNTS =====
+        const qaCheckingId = generateId();
+        const qaChecking: Account = {
+            id: qaCheckingId,
+            userId: qaUserId,
+            type: 'CHECKING',
+            name: 'QA Checking',
+            numberMasked: '**** **** **** 9999',
+            currency: 'CAD',
+            balance: 5000.0,
+        };
+        store.saveAccount(qaChecking);
+
+        const qaSavingsId = generateId();
+        const qaSavings: Account = {
+            id: qaSavingsId,
+            userId: qaUserId,
+            type: 'SAVINGS',
+            name: 'QA Savings',
+            numberMasked: '**** **** **** 8888',
+            currency: 'CAD',
+            balance: 10000.0,
+        };
+        store.saveAccount(qaSavings);
+
+        // ===== JANE SMITH ACCOUNTS (For transfer testing) =====
+        const janeCheckingId = generateId();
+        const janeChecking: Account = {
+            id: janeCheckingId,
+            userId: janeUserId,
+            type: 'CHECKING',
+            name: 'Chequing',
+            numberMasked: '**** **** **** 7777',
+            currency: 'CAD',
+            balance: 3500.0,
+        };
+        store.saveAccount(janeChecking);
+
+        const janeSavingsId = generateId();
+        const janeSavings: Account = {
+            id: janeSavingsId,
+            userId: janeUserId,
+            type: 'SAVINGS',
+            name: 'Savings',
+            numberMasked: '**** **** **** 6666',
+            currency: 'CAD',
+            balance: 25000.0,
+        };
+        store.saveAccount(janeSavings);
+
+        // ===== ADDITIONAL TRANSACTIONS FOR QA ACCOUNTS =====
+        const qaTransactions: Transaction[] = [
+            {
+                id: generateId(),
+                accountId: qaCheckingId,
+                type: 'CREDIT',
+                amount: 5000.0,
+                description: 'Initial deposit',
+                counterparty: 'Test Bank',
+                timestamp: new Date('2024-02-20'),
+                status: 'POSTED',
+            },
+            {
+                id: generateId(),
+                accountId: qaCheckingId,
+                type: 'DEBIT',
+                amount: 150.0,
+                description: 'Test transaction',
+                counterparty: 'Test Merchant',
+                timestamp: new Date('2024-02-19'),
+                status: 'POSTED',
+            },
+            {
+                id: generateId(),
+                accountId: qaSavingsId,
+                type: 'CREDIT',
+                amount: 1000.0,
+                description: 'Monthly savings',
+                counterparty: 'QA Checking',
+                timestamp: new Date('2024-02-18'),
+                status: 'POSTED',
+            },
+        ];
+        qaTransactions.forEach((t) => store.saveTransaction(t));
+
+        // ===== TRANSACTIONS FOR JANE SMITH =====
+        const janeTransactions: Transaction[] = [
+            {
+                id: generateId(),
+                accountId: janeCheckingId,
+                type: 'CREDIT',
+                amount: 3500.0,
+                description: 'Salary deposit',
+                counterparty: 'Tech Corp',
+                timestamp: new Date('2024-02-20'),
+                status: 'POSTED',
+            },
+            {
+                id: generateId(),
+                accountId: janeCheckingId,
+                type: 'DEBIT',
+                amount: 200.0,
+                description: 'Restaurant',
+                counterparty: 'Olive Garden',
+                timestamp: new Date('2024-02-19'),
+                status: 'POSTED',
+            },
+            {
+                id: generateId(),
+                accountId: janeSavingsId,
+                type: 'CREDIT',
+                amount: 2000.0,
+                description: 'Investment return',
+                counterparty: 'Broker',
+                timestamp: new Date('2024-02-18'),
+                status: 'POSTED',
+            },
+        ];
+        janeTransactions.forEach((t) => store.saveTransaction(t));
+
         console.log('✓ Database seeded successfully');
+        console.log('\n=== TEST CREDENTIALS ===');
+        console.log('User 1: alex@example.com / password');
+        console.log('User 2: qa@example.com / password');
+        console.log('User 3: jane@example.com / password');
+        console.log('================================\n');
     }
 }
 
