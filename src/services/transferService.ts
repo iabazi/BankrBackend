@@ -3,7 +3,6 @@ import { Transfer } from '../models/types';
 import { db } from '../models/db';
 import { generateId } from '../utils/id';
 import { accountService } from './accountService';
-import { transactionService } from './transactionService';
 import { formatMoney, subtractMoney, addMoney } from '../utils/money';
 
 function rowToTransfer(row: any): Transfer {
