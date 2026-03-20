@@ -1,0 +1,578 @@
+openapi: 3.0.0
+info:
+  title: Banking API
+  description: |
+    A production-ready banking API for Android learners integrating with Retrofit + Coroutines.
+    
+    **Base URLs:**
+    - Production: `https://your-app.vercel.app/`
+    - Development: `http://localhost:3000/`
+    - Android Emulator: `http://10.0.2.2:3000/`
+    
+    **Authentication:** All endpoints (except `/auth/*`) require a JWT token in the `Authorization` header:
+    ```
+    Authorization: Bearer <token>
+    ```
+    
+    **Seed Data:**
+    - Email: `alex@example.com`
+    - Password: `password`
+    
+  version: 1.0.0
+  contact:
+    name: API Support
+
+servers:
+  - url: http://10.0.2.2:3000
+    description: Android Emulator
+  - url: http://localhost:3000
+    description: Local Development
+  - url: https://your-app.vercel.app
+    description: Production (Vercel)
+
+tags:
+  - name: Authentication
+    description: User registration and login
+  - name: User
+    description: User profile
+  - name: Accounts
+    description: Bank accounts
+  - name: Transactions
+    description: Account transactions
+  - name: Transfers
+    description: Account transfers
+
+paths:
+  /health:
+    get:
+      summary: Health Check
+      tags:
+        - System
+      responses:
+        '200':
+          description: Server is running
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  /auth/register:
+    post:
+      summary: Register a new user
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - email
+                - password
+              properties:
+                name:
+                  type: string
+                  minLength: 2
+                  maxLength: 100
+                  example: John Doe
+                email:
+                  type: string
+                  format: email
+                  example: john@example.com
+                password:
+                  type: string
+                  minLength: 6
+                  example: SecurePassword123
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        example: ab1234cd5678ef
+                      name:
+                        type: string
+                        example: John Doe
+                      email:
+                        type: string
+                        example: john@example.com
+                      createdAt:
+                        type: string
+                        format: date-time
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Email already registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/login:
+    post:
+      summary: Login user and get JWT token
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: alex@example.com
+                password:
+                  type: string
+                  example: password
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                  user:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        example: ab1234cd5678ef
+                      name:
+                        type: string
+                        example: Alex Demo
+                      email:
+                        type: string
+                        example: alex@example.com
+                      createdAt:
+                        type: string
+                        format: date-time
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /me:
+    get:
+      summary: Get current user profile
+      tags:
+        - User
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User profile retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    example: ab1234cd5678ef
+                  name:
+                    type: string
+                    example: Alex Demo
+                  email:
+                    type: string
+                    example: alex@example.com
+                  createdAt:
+                    type: string
+                    format: date-time
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /accounts:
+    get:
+      summary: Get all accounts for current user
+      tags:
+        - Accounts
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of accounts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accounts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Account'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /accounts/{id}:
+    get:
+      summary: Get a specific account
+      tags:
+        - Accounts
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          example: c1234567890ab
+      responses:
+        '200':
+          description: Account details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - account belongs to another user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Account not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /accounts/{id}/transactions:
+    get:
+      summary: Get transactions for an account (paginated)
+      tags:
+        - Transactions
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          example: c1234567890ab
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+          description: Number of transactions per page
+          example: 20
+        - in: query
+          name: cursor
+          schema:
+            type: string
+          description: ID of the last transaction from previous page
+          example: t1234567890ab
+      responses:
+        '200':
+          description: Paginated transactions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Transaction'
+                  cursor:
+                    type: string
+                    nullable: true
+                    example: t1234567890ab
+                    description: Use this as the 'cursor' parameter for next page
+                  hasMore:
+                    type: boolean
+                    example: true
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Account not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /transfers:
+    post:
+      summary: Create a transfer between accounts
+      tags:
+        - Transfers
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          schema:
+            type: string
+          description: Unique key for idempotent transfers (optional)
+          example: transfer-2024-02-23-12345
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - fromAccountId
+                - toAccountId
+                - amount
+              properties:
+                fromAccountId:
+                  type: string
+                  example: c1234567890ab
+                toAccountId:
+                  type: string
+                  example: c0987654321cd
+                amount:
+                  type: number
+                  format: double
+                  minimum: 0.01
+                  example: 150.50
+                note:
+                  type: string
+                  nullable: true
+                  example: Payment for lunch
+      responses:
+        '201':
+          description: Transfer created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transfer'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - account belongs to another user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Account not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Insufficient funds
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT token obtained from `/auth/login`
+        
+        Example: `Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`
+
+  schemas:
+    Account:
+      type: object
+      required:
+        - id
+        - userId
+        - type
+        - name
+        - numberMasked
+        - currency
+        - balance
+      properties:
+        id:
+          type: string
+          example: c1234567890ab
+        userId:
+          type: string
+          example: ab1234cd5678ef
+        type:
+          type: string
+          enum: [CHECKING, SAVINGS]
+          example: CHECKING
+        name:
+          type: string
+          example: Chequing Account
+        numberMasked:
+          type: string
+          example: "**** **** **** 1234"
+        currency:
+          type: string
+          example: CAD
+        balance:
+          type: number
+          format: double
+          example: 2360.42
+
+    Transaction:
+      type: object
+      required:
+        - id
+        - accountId
+        - type
+        - amount
+        - description
+        - counterparty
+        - timestamp
+        - status
+      properties:
+        id:
+          type: string
+          example: t1234567890ab
+        accountId:
+          type: string
+          example: c1234567890ab
+        type:
+          type: string
+          enum: [DEBIT, CREDIT]
+          example: DEBIT
+        amount:
+          type: number
+          format: double
+          example: 89.99
+        description:
+          type: string
+          example: Grocery store
+        counterparty:
+          type: string
+          example: Whole Foods Market
+        timestamp:
+          type: string
+          format: date-time
+          example: "2024-02-19T15:30:00.000Z"
+        status:
+          type: string
+          enum: [POSTED, PENDING]
+          example: POSTED
+
+    Transfer:
+      type: object
+      required:
+        - id
+        - fromAccountId
+        - toAccountId
+        - amount
+        - status
+        - createdAt
+      properties:
+        id:
+          type: string
+          example: tr1234567890ab
+        fromAccountId:
+          type: string
+          example: c1234567890ab
+        toAccountId:
+          type: string
+          example: c0987654321cd
+        amount:
+          type: number
+          format: double
+          example: 150.50
+        note:
+          type: string
+          nullable: true
+          example: Payment for lunch
+        status:
+          type: string
+          enum: [SUCCESS, FAILED]
+          example: SUCCESS
+        createdAt:
+          type: string
+          format: date-time
+          example: "2024-02-23T12:00:00.000Z"
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+              enum:
+                - INVALID_INPUT
+                - UNAUTHENTICATED
+                - FORBIDDEN
+                - NOT_FOUND
+                - INSUFFICIENT_FUNDS
+                - INTERNAL_ERROR
+              example: NOT_FOUND
+            message:
+              type: string
+              example: Account not found
